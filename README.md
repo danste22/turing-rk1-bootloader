@@ -1,5 +1,5 @@
-# turing-rk1-bootloader
-This is a brief summary of how to create a recent bootloader for the Turing RK1 board. The following instructions are based on the work of @Quozul, who summarized the steps on this page: [Build Custom Image for Turing Pi RK1](https://quozul.dev/posts/2024-10-12-build-custom-image-for-turing-pi-rk1/).
+# Turing RK1 Bootloader
+This is a brief summary of how to create a recent bootloader for the Turing RK1 board. The following instructions are based on the work of [@Quozul](https://github.com/Quozul), who summarized the steps on this page: [Build Custom Image for Turing Pi RK1](https://quozul.dev/posts/2024-10-12-build-custom-image-for-turing-pi-rk1/).
 
 ## Obtain required code and artifacts
 First, clone the U-Boot repository and download the necessary files:
