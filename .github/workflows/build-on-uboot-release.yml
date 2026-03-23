@@ -1,5 +1,9 @@
 name: Build on U-Boot Release
 
+permissions:
+  contents: write
+  actions: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -139,37 +143,33 @@ jobs:
           path: artifacts/
           retention-days: 30
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        if: success()
-        with:
-          files: ./artifacts/bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
-          tag_name: bootloader-${{ needs.check-latest-uboot.outputs.tag }}
-          release_name: Bootloader for U-Boot ${{ needs.check-latest-uboot.outputs.tag }}
-          body: |
-            # Turing RK1 Bootloader
-
-            Built from U-Boot **${{ needs.check-latest-uboot.outputs.tag }}**
-
-            ## Build Information
-            - **Build Date**: ${{ github.event.head_commit.timestamp }}
-            - **U-Boot Version**: ${{ needs.check-latest-uboot.outputs.tag }}
-            - **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)
-            - **Configuration**: turing-rk1-rk3588_defconfig
-            - **Build Environment**: x86_64 → ARM64 cross-compilation
-
-            ## Files
-            - `bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img` - Ready-to-deploy bootloader image
-
-            ## Usage
-            Deploy using Turing Pi 2 BMC Web UI or TPI CLI:
-            ```bash
-            tpi bootloader flash bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
-            ```
-          draft: false
-          prerelease: false
+      - name: Create GitHub Release with GitHub CLI
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.check-latest-uboot.outputs.tag }}
+        run: |
+          gh release create bootloader-${TAG} \
+            ./artifacts/bootloader-${TAG}.img \
+            --title "Bootloader for U-Boot ${TAG}" \
+            --notes "# Turing RK1 Bootloader
+
+Built from U-Boot **${TAG}**
+
+## Build Information
+- **U-Boot Version**: ${TAG}
+- **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)
+- **Configuration**: turing-rk1-rk3588_defconfig
+- **Build Environment**: x86_64 → ARM64 cross-compilation
+
+## Files
+- \`bootloader-${TAG}.img\` - Ready-to-deploy bootloader image
+
+## Usage
+Deploy using Turing Pi 2 BMC Web UI or TPI CLI:
+\`\`\`bash
+tpi bootloader flash bootloader-${TAG}.img
+\`\`\`" \
+            --draft=false
 
       - name: Record successful build
         run: |
