@@ -1,0 +1,8 @@
+{
+  "name": "U-Boot Development Container",
+  "dockerfile": "Dockerfile",
+  "workspaceFolder": "/workspace",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  }
+}
