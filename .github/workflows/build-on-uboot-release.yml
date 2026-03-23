@@ -30,7 +30,7 @@ jobs:
           else
             # Fetch latest non-RC tag from u-boot/u-boot
             TAG=$(git ls-remote --tags https://github.com/u-boot/u-boot | \
-              grep -oP 'refs/tags/v\K[0-9]+\.[0-9]+\.[0-9]+' | \
+              grep -oP 'refs/tags/v\K[0-9]+\.[0-9]+([0-9.]*)?(?!.*-rc)' | \
               grep -v 'rc' | \
               sort -V | \
               tail -n 1)
