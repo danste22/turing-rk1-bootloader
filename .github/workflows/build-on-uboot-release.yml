@@ -129,40 +129,32 @@ jobs:
           path: artifacts/
           retention-days: 30
 
-      - name: Create release notes file
+      - name: Create GitHub Release via API
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.check-latest-uboot.outputs.tag }}
+          REPO: ${{ github.repository }}
         run: |
-          cat > /tmp/release_notes.txt << 'EOF'
-          # Turing RK1 Bootloader
+          # Create release
+          RELEASE_ID=$(curl -s -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${REPO}/releases \
+            -d "{\"tag_name\":\"bootloader-${TAG}\",\"name\":\"Bootloader for U-Boot ${TAG}\",\"body\":\"# Turing RK1 Bootloader\n\nBuilt from U-Boot **${TAG}**\n\n## Build Information\n- **U-Boot Version**: ${TAG}\n- **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)\n- **Configuration**: turing-rk1-rk3588_defconfig\n- **Build Environment**: x86_64 → ARM64 cross-compilation\n\n## Files\n- bootloader-${TAG}.img - Ready-to-deploy bootloader image\n\n## Usage\nDeploy using Turing Pi 2 BMC Web UI or TPI CLI:\n\`tpi bootloader flash bootloader-${TAG}.img\`\",\"draft\":false,\"prerelease\":false}" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
 
-          Built from U-Boot **${{ needs.check-latest-uboot.outputs.tag }}**
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Failed to create release"
+            exit 1
+          fi
 
-          ## Build Information
-          - **U-Boot Version**: ${{ needs.check-latest-uboot.outputs.tag }}
-          - **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)
-          - **Configuration**: turing-rk1-rk3588_defconfig
-          - **Build Environment**: x86_64 → ARM64 cross-compilation
+          echo "Release created with ID: $RELEASE_ID"
 
-          ## Files
-          - `bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img` - Ready-to-deploy bootloader image
-
-          ## Usage
-          Deploy using Turing Pi 2 BMC Web UI or TPI CLI:
-          ```bash
-          tpi bootloader flash bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
-          ```
-          EOF
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.check-latest-uboot.outputs.tag }}
-        run: |
-          gh release create bootloader-${TAG} \
-            ./artifacts/bootloader-${TAG}.img \
-            --title "Bootloader for U-Boot ${TAG}" \
-            --notes-file /tmp/release_notes.txt
+          # Upload asset
+          curl -s -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @./artifacts/bootloader-${TAG}.img \
+            https://uploads.github.com/repos/${REPO}/releases/${RELEASE_ID}/assets?name=bootloader-${TAG}.img
 
       - name: Record successful build
         run: |
