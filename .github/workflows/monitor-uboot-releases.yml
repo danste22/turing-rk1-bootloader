@@ -1,0 +1,51 @@
+name: Monitor U-Boot Releases
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' 
+  workflow_dispatch:
+
+jobs:
+  check-uboot-releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for new U-Boot releases
+        id: check_release
+        run: |
+          # Get latest non-RC tag from u-boot
+          LATEST_TAG=$(git ls-remote --tags https://github.com/u-boot/u-boot | \
+            grep -oP 'refs/tags/v\K[0-9]+\.[0-9]+\.[0-9]+(?!.*rc)' | \
+            sort -V | \
+            tail -n 1)
+          
+          echo "Latest u-boot tag: v${LATEST_TAG}"
+          echo "tag=v${LATEST_TAG}" >> $GITHUB_OUTPUT
+          
+          # Check if already built
+          if grep -q "^v${LATEST_TAG}$" .builds-completed 2>/dev/null; then
+            echo "Already built"
+            echo "is_new=false" >> $GITHUB_OUTPUT
+          else
+            echo "New release found"
+            echo "is_new=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger build workflow
+        if: steps.check_release.outputs.is_new == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-on-uboot-release.yml',
+              ref: 'main',
+              inputs: {
+                uboot_tag: '${{ steps.check_release.outputs.tag }}'
+              }
+            })

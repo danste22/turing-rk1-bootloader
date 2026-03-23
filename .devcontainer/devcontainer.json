@@ -1,13 +1,8 @@
 {
   "name": "U-Boot Development Container",
-  "dockerComposeFile": [
-    "../docker-compose.yml"
-  ],
-  "service": "app",
+  "dockerfile": "Dockerfile",
   "workspaceFolder": "/workspace",
   "settings": {
     "terminal.integrated.shell.linux": "/bin/bash"
-  },
-  "postCreateCommand": "apt-get update && apt-get install -y gcc build-essential u-boot-tools",
-  "remoteUser": "vscode"
+  }
 }
