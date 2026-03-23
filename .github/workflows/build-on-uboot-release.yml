@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       uboot_tag:
-        description: 'U-Boot tag to build (e.g., v2024.07)'
+        description: "U-Boot tag to build (e.g., v2024.07)"
         required: false
         type: string
 
@@ -37,19 +37,19 @@ jobs:
             TAG="v${TAG}"
             echo "Fetched latest tag: ${TAG}"
           fi
-          
+
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Check if build already exists
         id: check_build
         run: |
           TAG="${{ steps.fetch_tag.outputs.tag }}"
-          
+
           # Create builds tracking file if it doesn't exist
           if [ ! -f ".builds-completed" ]; then
             touch .builds-completed
           fi
-          
+
           # Check if tag is already built
           if grep -q "^${TAG}$" .builds-completed; then
             echo "Build already exists for tag ${TAG}"
@@ -77,6 +77,10 @@ jobs:
             python3-pyelftools python3-setuptools python3-dev swig \
             && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+      - name: Configure git safe directory
+        run: |
+          git config --global --add safe.directory /__w/turing-rk1-bootloader/turing-rk1-bootloader
+
       - name: Initialize u-boot submodule
         run: |
           git submodule update --init --recursive
@@ -93,30 +97,30 @@ jobs:
           TAG: ${{ needs.check-latest-uboot.outputs.tag }}
         run: |
           cd u-boot
-          
+
           echo "Starting bootloader build for tag: ${TAG}"
-          
+
           mkdir -p rkbin
-          
+
           echo "Downloading Rockchip binaries..."
           curl -fsSL -o rkbin/rk3588_bl31_v1.51.elf \
             https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.51.elf
           curl -fsSL -o rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
             https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin
-          
+
           echo "Configuring u-boot for Turing RK1..."
           make turing-rk1-rk3588_defconfig
-          
+
           echo "Building u-boot..."
           ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
           BL31=rkbin/rk3588_bl31_v1.51.elf \
           make -j$(nproc)
-          
+
           echo "Creating bootloader image..."
           dd if=/dev/zero of=bootloader.img bs=512 count=32767
           dd if=./idbloader.img of=bootloader.img bs=512 seek=64 conv=notrunc
           dd if=./u-boot.itb of=bootloader.img bs=512 seek=16384
-          
+
           echo "Build completed successfully!"
           ls -lah bootloader.img
 
@@ -143,25 +147,25 @@ jobs:
           release_name: Bootloader for U-Boot ${{ needs.check-latest-uboot.outputs.tag }}
           body: |
             # Turing RK1 Bootloader
-            
+
             Built from U-Boot **${{ needs.check-latest-uboot.outputs.tag }}**
-            
+
             ## Build Information
             - **Build Date**: ${{ github.event.head_commit.timestamp }}
             - **U-Boot Version**: ${{ needs.check-latest-uboot.outputs.tag }}
             - **Target**: Turing Pi RK1 (RK3588)
             - **Configuration**: turing-rk1-rk3588_defconfig
             - **Build Environment**: GCC 15.2.0 container
-            
+
             ## Files
             - `bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img` - Ready-to-deploy bootloader image
-            
+
             ## Usage
             Deploy using Turing Pi 2 BMC Web UI or TPI CLI:
             ```bash
             tpi bootloader flash bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
             ```
-            
+
             ## Build Details
             Built reproducibly using GCC 15.2.0 container image for CI/local consistency.
           draft: false
