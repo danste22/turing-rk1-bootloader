@@ -1,8 +1,12 @@
 name: Monitor U-Boot Releases
 
+permissions:
+  contents: read
+  actions: write
+
 on:
   schedule:
-    - cron: '0 0 * * 0' 
+    - cron: "0 0 * * 0"
   workflow_dispatch:
 
 jobs:
@@ -22,10 +26,10 @@ jobs:
             grep -oP 'refs/tags/v\K[0-9]+\.[0-9]+\.[0-9]+(?!.*rc)' | \
             sort -V | \
             tail -n 1)
-          
+
           echo "Latest u-boot tag: v${LATEST_TAG}"
           echo "tag=v${LATEST_TAG}" >> $GITHUB_OUTPUT
-          
+
           # Check if already built
           if grep -q "^v${LATEST_TAG}$" .builds-completed 2>/dev/null; then
             echo "Already built"
