@@ -59,134 +59,133 @@ jobs:
             echo "should_build=true" >> $GITHUB_OUTPUT
           fi
 
-  build-bootloader:
-    needs: check-latest-uboot
-    if: needs.check-latest-uboot.outputs.should_build == 'true'
-    runs-on: ubuntu-latest
-    container:
-      image: gcc:15.2.0
-      options: --user root
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    build-bootloader:
+      needs: check-latest-uboot
+      if: needs.check-latest-uboot.outputs.should_build == 'true'
+      runs-on: ubuntu-latest # ← Back to x86_64
+      container:
+        image: gcc:15.2.0
+        options: --user root
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          apt-get update && apt-get install -y \
-            git curl bison make flex \
-            python3-pyelftools python3-setuptools python3-dev swig \
-            && apt-get clean && rm -rf /var/lib/apt/lists/*
+        - name: Install dependencies
+          run: |
+            apt-get update && apt-get install -y \
+              git curl bison make flex \
+              python3-pyelftools python3-setuptools python3-dev swig \
+              gcc-aarch64-linux-gnu \
+              && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-      - name: Configure git safe directory
-        run: |
-          git config --global --add safe.directory /__w/turing-rk1-bootloader/turing-rk1-bootloader
+        - name: Configure git safe directory
+          run: |
+            git config --global --add safe.directory /__w/turing-rk1-bootloader/turing-rk1-bootloader
 
-      - name: Initialize u-boot submodule
-        run: |
-          git submodule update --init --recursive
+        - name: Initialize u-boot submodule
+          run: |
+            git submodule update --init --recursive
 
-      - name: Fetch u-boot tag
-        run: |
-          cd u-boot
-          git fetch origin tag ${{ needs.check-latest-uboot.outputs.tag }}
-          git checkout ${{ needs.check-latest-uboot.outputs.tag }}
-          cd ..
+        - name: Fetch u-boot tag
+          run: |
+            cd u-boot
+            git fetch origin tag ${{ needs.check-latest-uboot.outputs.tag }}
+            git checkout ${{ needs.check-latest-uboot.outputs.tag }}
+            cd ..
 
-      - name: Build Bootloader
-        env:
-          TAG: ${{ needs.check-latest-uboot.outputs.tag }}
-        run: |
-          cd u-boot
+        - name: Build Bootloader
+          env:
+            TAG: ${{ needs.check-latest-uboot.outputs.tag }}
+          run: |
+            cd u-boot
 
-          echo "Starting bootloader build for tag: ${TAG}"
+            echo "Starting bootloader build for tag: ${TAG}"
 
-          mkdir -p rkbin
+            mkdir -p rkbin
 
-          echo "Downloading Rockchip binaries..."
-          curl -fsSL -o rkbin/rk3588_bl31_v1.51.elf \
-            https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.51.elf
-          curl -fsSL -o rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
-            https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin
+            echo "Downloading Rockchip binaries..."
+            curl -fsSL -o rkbin/rk3588_bl31_v1.51.elf \
+              https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.51.elf
+            curl -fsSL -o rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
+              https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin
 
-          echo "Configuring u-boot for Turing RK1..."
-          make turing-rk1-rk3588_defconfig
+            echo "Configuring u-boot for Turing RK1 (ARM cross-compile)..."
+            make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- turing-rk1-rk3588_defconfig
 
-          echo "Building u-boot..."
-          ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
-          BL31=rkbin/rk3588_bl31_v1.51.elf \
-          make -j$(nproc)
+            echo "Building u-boot..."
+            ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
+            BL31=rkbin/rk3588_bl31_v1.51.elf \
+            ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+            make -j$(nproc)
 
-          echo "Creating bootloader image..."
-          dd if=/dev/zero of=bootloader.img bs=512 count=32767
-          dd if=./idbloader.img of=bootloader.img bs=512 seek=64 conv=notrunc
-          dd if=./u-boot.itb of=bootloader.img bs=512 seek=16384
+            echo "Creating bootloader image..."
+            dd if=/dev/zero of=bootloader.img bs=512 count=32767
+            dd if=./idbloader.img of=bootloader.img bs=512 seek=64 conv=notrunc
+            dd if=./u-boot.itb of=bootloader.img bs=512 seek=16384
 
-          echo "Build completed successfully!"
-          ls -lah bootloader.img
+            echo "Build completed successfully!"
+            ls -lah bootloader.img
 
-      - name: Copy build artifacts
-        run: |
-          mkdir -p artifacts
-          cp u-boot/bootloader.img artifacts/bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
-          ls -lah artifacts/
+        - name: Copy build artifacts
+          run: |
+            mkdir -p artifacts
+            cp u-boot/bootloader.img artifacts/bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
+            ls -lah artifacts/
 
-      - name: Upload artifacts to workflow
-        uses: actions/upload-artifact@v4
-        with:
-          name: bootloader-${{ needs.check-latest-uboot.outputs.tag }}
-          path: artifacts/
-          retention-days: 30
+        - name: Upload artifacts to workflow
+          uses: actions/upload-artifact@v4
+          with:
+            name: bootloader-${{ needs.check-latest-uboot.outputs.tag }}
+            path: artifacts/
+            retention-days: 30
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: bootloader-${{ needs.check-latest-uboot.outputs.tag }}
-          release_name: Bootloader for U-Boot ${{ needs.check-latest-uboot.outputs.tag }}
-          body: |
-            # Turing RK1 Bootloader
+        - name: Create GitHub Release
+          id: create_release
+          uses: actions/create-release@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            tag_name: bootloader-${{ needs.check-latest-uboot.outputs.tag }}
+            release_name: Bootloader for U-Boot ${{ needs.check-latest-uboot.outputs.tag }}
+            body: |
+              # Turing RK1 Bootloader
 
-            Built from U-Boot **${{ needs.check-latest-uboot.outputs.tag }}**
+              Built from U-Boot **${{ needs.check-latest-uboot.outputs.tag }}**
 
-            ## Build Information
-            - **Build Date**: ${{ github.event.head_commit.timestamp }}
-            - **U-Boot Version**: ${{ needs.check-latest-uboot.outputs.tag }}
-            - **Target**: Turing Pi RK1 (RK3588)
-            - **Configuration**: turing-rk1-rk3588_defconfig
-            - **Build Environment**: GCC 15.2.0 container
+              ## Build Information
+              - **Build Date**: ${{ github.event.head_commit.timestamp }}
+              - **U-Boot Version**: ${{ needs.check-latest-uboot.outputs.tag }}
+              - **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)
+              - **Configuration**: turing-rk1-rk3588_defconfig
+              - **Build Environment**: x86_64 → ARM64 cross-compilation
 
-            ## Files
-            - `bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img` - Ready-to-deploy bootloader image
+              ## Files
+              - `bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img` - Ready-to-deploy bootloader image
 
-            ## Usage
-            Deploy using Turing Pi 2 BMC Web UI or TPI CLI:
-            ```bash
-            tpi bootloader flash bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
-            ```
+              ## Usage
+              Deploy using Turing Pi 2 BMC Web UI or TPI CLI:
+              ```bash
+              tpi bootloader flash bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
+              ```
+            draft: false
+            prerelease: false
 
-            ## Build Details
-            Built reproducibly using GCC 15.2.0 container image for CI/local consistency.
-          draft: false
-          prerelease: false
+        - name: Upload Release Asset
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: ./artifacts/bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
+            asset_name: bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
+            asset_content_type: application/octet-stream
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
-          asset_name: bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
-          asset_content_type: application/octet-stream
-
-      - name: Record successful build
-        run: |
-          TAG="${{ needs.check-latest-uboot.outputs.tag }}"
-          echo "${TAG}" >> .builds-completed
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add .builds-completed
-          git commit -m "chore: record bootloader build for ${TAG}"
-          git push || echo "Could not push build record"
+        - name: Record successful build
+          run: |
+            TAG="${{ needs.check-latest-uboot.outputs.tag }}"
+            echo "${TAG}" >> .builds-completed
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add .builds-completed
+            git commit -m "chore: record bootloader build for ${TAG}"
+            git push || echo "Could not push build record"
