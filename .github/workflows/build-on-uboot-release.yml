@@ -1,28 +1,44 @@
 name: Build on U-Boot Release
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch: # Manual trigger support
+  push:
+    tags:
+      - 'v*.*.*' # Matches version tags
+  schedule:
+    - cron: '0 0 * * *' # Daily at 00:00 UTC
+  workflow_dispatch: # Allows manual triggers
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
+      - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Output latest tag
-        run: echo "Latest tag is: $(git describe --tags `git rev-list --tags --max-count=1`)"
-      
-      - name: Check for existing builds
+      - name: Set up Docker build environment
+        uses: devcontainers/ci@v0.2.0
+
+      - name: Get latest non-rc tag
+        id: get_latest_tag
+        run: |
+          echo "Fetching tags..."
+          TAG=$(git tag --sort=-creatordate | grep -v '\-rc' | head -n 1)
+          echo "Latest non-rc tag is $TAG"
+          echo "::set-output name=tag::$TAG"
+
+      - name: Check if build exists
         id: check_build
         run: |
-          # Logic to check for existing builds
-          echo "No existing builds found."
+          if [ -f "build_$TAG.log" ]; then
+            echo "Build already exists for tag $TAG"
+            echo "::set-output name=build_exists::true"
+          else
+            echo "No existing build for tag $TAG"
+            echo "::set-output name=build_exists::false"
+          fi
 
-      - name: Build using devcontainer
-        uses: devcontainers-contrib/features@v1
-        with:
-          features: devcontainer-build
-
+      - name: Build project
+        if: steps.check_build.outputs.build_exists == 'false'
+        run: |
+          echo "Starting build process for tag ${{ steps.get_latest_tag.outputs.tag }}"
+          # Insert build commands here
