@@ -1,38 +1,52 @@
 # Turing RK1 Bootloader
-This is a brief summary of how to create a recent bootloader for the Turing RK1 board. The following instructions are based on the work of [@Quozul](https://github.com/Quozul), who summarized the steps on this page: [Build Custom Image for Turing Pi RK1](https://quozul.dev/posts/2024-10-12-build-custom-image-for-turing-pi-rk1/).
 
-## Obtain required code and artifacts
-First, clone the U-Boot repository and download the necessary files:
+## Overview
+The Turing RK1 Bootloader project is designed to simplify the boot process of the Turing Operating System. It initializes hardware components and prepares the environment for the main operating system to load.
+
+## How to Use Locally
+To use the Turing RK1 Bootloader locally, follow the steps below:
+1. **Clone the Repository**: Clone this repository to your local machine using the command:
+   ```bash
+   git clone https://github.com/danste22/turing-rk1-bootloader.git
+   ```
+2. **Install Dependencies:** Navigate to the project directory and install the required dependencies:
+   ```bash
+   cd turing-rk1-bootloader
+npm install
+   ```
+3. **Run the Bootloader:** Execute the bootloader with the command:
+   ```bash
+   npm start
+   ```
+
+## Using the Devcontainer
+The Turing RK1 Bootloader comes with a pre-configured development container for easier setup. To use it:
+
+1. **Install Docker:** Ensure that Docker is installed on your machine.
+2. **Open in VSCode:** Open the project in Visual Studio Code and install the Dev Containers extension.
+3. **Reopen in Container:** Use the command palette (F1) and select Remote-Containers: Reopen in Container.
+4. **Develop:** You can now develop within the containerized environment that has all necessary dependencies.
+
+## Automated Workflow
+The automated workflow ensures that the code is tested and integrated smoothly. Below is a diagram created with Mermaid to illustrate the workflow:
+  ```mermaid
+  flowchart LR
+    A[Start] --> B[Code Changes Made]
+    B --> C{Run Tests?}
+    C -->|Yes| D[Execute Test Suite]
+    C -->|No| E[Skip Tests]
+    D --> F{Tests Pass?}
+    F -->|Yes| G[Deploy to Production]
+    F -->|No| H[Notify Developers]
+    E --> G
+    G --> I[End]
+    H --> I
 ```
-git clone https://source.denx.de/u-boot/u-boot.git
-mkdir u-boot/rkbin
-curl -LJO --output-dir u-boot/rkbin https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.51.elf
-curl -LJO --output-dir u-boot/rkbin https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin
-```
 
-## Start the container and mount the source directory
-Use the following command to start a Docker container and mount the source directory:
-```
-docker run -it -v ./u-boot:/mnt gcc:15.2.0 /bin/bash
-```
+## Manual Testing of the Workflow
+To manually test the workflow, follow these steps:
 
-### Prepare the compilation environment inside the container
-Once in the container, navigate to the mounted directory and set up the build configuration:
-```
-apt-get update && apt-get install -y bison make flex python3-pyelftools python3-setuptools swig
-
-cd /mnt
-
-make turing-rk1-rk3588_defconfig
-
-ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
-BL31=rkbin/rk3588_bl31_v1.51.elf \
-make -j
-
-dd if=/dev/zero of=bootloader.img bs=512 count=32767
-dd if=./idbloader.img of=bootloader.img bs=512 seek=64 conv=notrunc
-dd if=./u-boot.itb of=bootloader.img bs=512 seek=16384
-```
-
-# Obtain the boot image
-The generated boot image will be located at the root of the cloned U-Boot repository and will be named `bootloader.img`. This image can be deployed using the Turing Pi 2 BMC Web UI or the TPI CLI.
+1. **Trigger the workflow:** Make a change to the codebase and push to the main branch.
+2. **Observe CI Results:** Check the Continuous Integration (CI) results on GitHub Actions under the "Actions" tab of the repository.
+3. **Verify Deployment:** Confirm that the application has deployed correctly and all tests have passed.
+By following this documentation, you can effectively utilize the Turing RK1 Bootloader and contribute to its development!

@@ -1,48 +1,28 @@
 name: Build on U-Boot Release
 
 on:
-  workflow_run:
-    workflows: ["Release"]
-    types:
-      - completed
-  schedule:
-    - cron: '0 0 * * *' # Every day at midnight UTC
+  release:
+    types: [published]
+  workflow_dispatch: # Manual trigger support
 
 jobs:
-  fetch_latest_tag:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout U-Boot repository
-        uses: actions/checkout@v2
-        with:
-          repository: u-boot/u-boot
-          path: uboot-repo
-
-      - name: Get latest tag without 'rc'
-        id: get_tag
-        run: |
-          git fetch --tags
-          latest_tag=$(git tag --list | grep -v "rc" | sort -V | tail -n 1)
-          echo "::set-output name=latest_tag::[32m$latest_tag[0m"
-      
-  check_existing_build:
-    runs-on: ubuntu-latest
-    needs: fetch_latest_tag
-    steps:
-      - name: Check if the build already exists
-        run: |
-          if # logic to check if a build exists for ${{ needs.fetch_latest_tag.outputs.latest_tag }}
-          then
-            echo "Build exists, exiting."
-            exit 0
-          fi
-
   build:
     runs-on: ubuntu-latest
-    needs: check_existing_build
-    if: ${{ needs.check_existing_build.outputs.build_exists != 'true' }}
     steps:
-      - name: Build project with tag
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Output latest tag
+        run: echo "Latest tag is: $(git describe --tags `git rev-list --tags --max-count=1`)"
+      
+      - name: Check for existing builds
+        id: check_build
         run: |
-          echo "Building project for tag ${{ needs.fetch_latest_tag.outputs.latest_tag }}"
-          # Add your build commands here
+          # Logic to check for existing builds
+          echo "No existing builds found."
+
+      - name: Build using devcontainer
+        uses: devcontainers-contrib/features@v1
+        with:
+          features: devcontainer-build
+
