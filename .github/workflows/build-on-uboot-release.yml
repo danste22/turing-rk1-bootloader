@@ -27,12 +27,10 @@ jobs:
       - name: Determine U-Boot tag to build
         id: fetch_tag
         run: |
-          # If tag provided via input, use it; otherwise fetch latest
           if [ -n "${{ github.event.inputs.uboot_tag }}" ]; then
             TAG="${{ github.event.inputs.uboot_tag }}"
             echo "Using provided tag: ${TAG}"
           else
-            # Fetch latest non-RC tag from u-boot/u-boot
             TAG=$(git ls-remote --tags https://github.com/u-boot/u-boot | \
               grep -oP 'refs/tags/v\K[0-9]+\.[0-9]+([0-9.]*)?(?!.*-rc)' | \
               grep -v 'rc' | \
@@ -41,20 +39,15 @@ jobs:
             TAG="v${TAG}"
             echo "Fetched latest tag: ${TAG}"
           fi
-
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Check if build already exists
         id: check_build
         run: |
           TAG="${{ steps.fetch_tag.outputs.tag }}"
-
-          # Create builds tracking file if it doesn't exist
           if [ ! -f ".builds-completed" ]; then
             touch .builds-completed
           fi
-
-          # Check if tag is already built
           if grep -q "^${TAG}$" .builds-completed; then
             echo "Build already exists for tag ${TAG}"
             echo "should_build=false" >> $GITHUB_OUTPUT
@@ -102,31 +95,24 @@ jobs:
           TAG: ${{ needs.check-latest-uboot.outputs.tag }}
         run: |
           cd u-boot
-
           echo "Starting bootloader build for tag: ${TAG}"
-
           mkdir -p rkbin
-
           echo "Downloading Rockchip binaries..."
           curl -fsSL -o rkbin/rk3588_bl31_v1.51.elf \
             https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.51.elf
           curl -fsSL -o rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
             https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin
-
           echo "Configuring u-boot for Turing RK1 (ARM cross-compile)..."
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- turing-rk1-rk3588_defconfig
-
           echo "Building u-boot..."
           ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
           BL31=rkbin/rk3588_bl31_v1.51.elf \
           ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
           make -j$(nproc)
-
           echo "Creating bootloader image..."
           dd if=/dev/zero of=bootloader.img bs=512 count=32767
           dd if=./idbloader.img of=bootloader.img bs=512 seek=64 conv=notrunc
           dd if=./u-boot.itb of=bootloader.img bs=512 seek=16384
-
           echo "Build completed successfully!"
           ls -lah bootloader.img
 
@@ -143,7 +129,32 @@ jobs:
           path: artifacts/
           retention-days: 30
 
-      - name: Create GitHub Release with GitHub CLI
+      - name: Create release notes file
+        env:
+          TAG: ${{ needs.check-latest-uboot.outputs.tag }}
+        run: |
+          cat > /tmp/release_notes.txt << 'EOF'
+          # Turing RK1 Bootloader
+
+          Built from U-Boot **${{ needs.check-latest-uboot.outputs.tag }}**
+
+          ## Build Information
+          - **U-Boot Version**: ${{ needs.check-latest-uboot.outputs.tag }}
+          - **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)
+          - **Configuration**: turing-rk1-rk3588_defconfig
+          - **Build Environment**: x86_64 → ARM64 cross-compilation
+
+          ## Files
+          - `bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img` - Ready-to-deploy bootloader image
+
+          ## Usage
+          Deploy using Turing Pi 2 BMC Web UI or TPI CLI:
+          ```bash
+          tpi bootloader flash bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
+          ```
+          EOF
+
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.check-latest-uboot.outputs.tag }}
@@ -151,25 +162,7 @@ jobs:
           gh release create bootloader-${TAG} \
             ./artifacts/bootloader-${TAG}.img \
             --title "Bootloader for U-Boot ${TAG}" \
-            --notes "# Turing RK1 Bootloader
-
-Built from U-Boot **${TAG}**
-
-## Build Information
-- **U-Boot Version**: ${TAG}
-- **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)
-- **Configuration**: turing-rk1-rk3588_defconfig
-- **Build Environment**: x86_64 → ARM64 cross-compilation
-
-## Files
-- \`bootloader-${TAG}.img\` - Ready-to-deploy bootloader image
-
-## Usage
-Deploy using Turing Pi 2 BMC Web UI or TPI CLI:
-\`\`\`bash
-tpi bootloader flash bootloader-${TAG}.img
-\`\`\`" \
-            --draft=false
+            --notes-file /tmp/release_notes.txt
 
       - name: Record successful build
         run: |
