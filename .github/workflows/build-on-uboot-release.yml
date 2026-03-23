@@ -1,12 +1,8 @@
 name: Build on U-Boot Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*' # Matches version tags
-  schedule:
-    - cron: '0 0 * * *' # Daily at 00:00 UTC
-  workflow_dispatch: # Allows manual triggers
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -15,30 +11,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Docker build environment
-        uses: devcontainers/ci@v0.2.0
-
-      - name: Get latest non-rc tag
-        id: get_latest_tag
+      - name: Setup Docker
         run: |
-          echo "Fetching tags..."
-          TAG=$(git tag --sort=-creatordate | grep -v '\-rc' | head -n 1)
-          echo "Latest non-rc tag is $TAG"
-          echo "::set-output name=tag::$TAG"
+          echo 'Setting up Docker...'
 
-      - name: Check if build exists
+      - name: Fetch latest U-Boot tag
+        id: get_version
+        run: |
+          U_BOOT_VERSION=$(git ls-remote --tags https://github.com/u-boot/u-boot | awk '{print $2}' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1)
+          echo "::set-output name=version::$U_BOOT_VERSION"
+
+      - name: Check if build already exists
         id: check_build
         run: |
-          if [ -f "build_$TAG.log" ]; then
-            echo "Build already exists for tag $TAG"
-            echo "::set-output name=build_exists::true"
+          if grep -q "$U_BOOT_VERSION" .builds-completed; then
+            echo 'Build already exists. Skipping.';
+            echo "::set-output name=build_exists::true";
           else
-            echo "No existing build for tag $TAG"
-            echo "::set-output name=build_exists::false"
+            echo 'No previous build found.';
+            echo "::set-output name=build_exists::false";
           fi
 
-      - name: Build project
+      - name: Build Bootloader
         if: steps.check_build.outputs.build_exists == 'false'
         run: |
-          echo "Starting build process for tag ${{ steps.get_latest_tag.outputs.tag }}"
-          # Insert build commands here
+          TAG="${{ needs.check-latest-uboot.outputs.tag }}"
+          docker build -f .devcontainer/Dockerfile -t bootloader:latest .
+          docker run --rm \
+            -v $(pwd):/workspace \
+            -w /workspace/u-boot \
+            bootloader:latest
+          echo "${TAG}" >> .builds-completed
+
