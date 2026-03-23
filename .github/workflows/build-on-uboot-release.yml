@@ -10,7 +10,7 @@ on:
 
 jobs:
   check-latest-uboot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     outputs:
       tag: ${{ steps.fetch_tag.outputs.tag }}
       should_build: ${{ steps.check_build.outputs.should_build }}
