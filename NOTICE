@@ -1,0 +1,20 @@
+Third-party software in the bootloader image
+
+Files in this repository, other than the u-boot submodule, are dedicated
+under CC0 1.0. The bootloader image is not. It contains the software below.
+
+U-Boot
+  Copyright the U-Boot authors
+  License: GPL-2.0-or-later
+  https://github.com/u-boot/u-boot
+  The image is built from the U-Boot tag in its filename. That tag is the
+  u-boot submodule in this repository.
+
+Rockchip RK3588 DDR init and BL31
+  Copyright (c) 2017-2023, Rockchip Electronics Co., Ltd. All rights reserved.
+  License: https://github.com/rockchip-linux/rkbin/blob/master/LICENSE
+  rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.24.bin
+  rk3588_bl31_v1.56.elf
+  Rockchip grants a non-exclusive license to use, copy, and distribute these
+  binaries. That license does not allow decompiling or reverse-engineering
+  them, or removing their copyright notices.

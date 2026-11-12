@@ -123,6 +123,7 @@ jobs:
         run: |
           mkdir -p artifacts
           cp u-boot/bootloader.img artifacts/bootloader-${{ needs.check-latest-uboot.outputs.tag }}.img
+          cp NOTICE artifacts/NOTICE
           ls -lah artifacts/
 
       - name: Upload artifacts to workflow
@@ -143,7 +144,7 @@ jobs:
             -H "Authorization: token ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${REPO}/releases \
-            -d "{\"tag_name\":\"bootloader-${TAG}\",\"name\":\"Bootloader for U-Boot ${TAG}\",\"body\":\"# Turing RK1 Bootloader\n\nBuilt from U-Boot **${TAG}**\n\n## Build Information\n- **U-Boot Version**: ${TAG}\n- **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)\n- **Configuration**: turing-rk1-rk3588_defconfig\n- **Build Environment**: x86_64 → ARM64 cross-compilation\n\n## Files\n- bootloader-${TAG}.img - Ready-to-deploy bootloader image\n\n## Usage\nDeploy using Turing Pi 2 BMC Web UI or TPI CLI:\n\`tpi bootloader flash bootloader-${TAG}.img\`\",\"draft\":false,\"prerelease\":false}" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
+            -d "{\"tag_name\":\"bootloader-${TAG}\",\"name\":\"Bootloader for U-Boot ${TAG}\",\"body\":\"# Turing RK1 Bootloader\n\nBuilt from U-Boot **${TAG}**\n\n## Build Information\n- **U-Boot Version**: ${TAG}\n- **Target**: Turing Pi RK1 (RK3588 / ARMv8-A)\n- **Configuration**: turing-rk1-rk3588_defconfig\n- **Build Environment**: x86_64 → ARM64 cross-compilation\n\n## Files\n- bootloader-${TAG}.img - Ready-to-deploy bootloader image\n- NOTICE - Third-party licenses for software inside the image\n\n## Third-party notices\nThis image contains U-Boot (GPL-2.0-or-later) and Rockchip RK3588 DDR init and BL31 binaries under Rockchip's license. See the attached NOTICE.\n\n## Usage\nDeploy using Turing Pi 2 BMC Web UI or TPI CLI:\n\`tpi bootloader flash bootloader-${TAG}.img\`\",\"draft\":false,\"prerelease\":false}" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')
 
           if [ -z "$RELEASE_ID" ]; then
             echo "Failed to create release"
@@ -158,6 +159,12 @@ jobs:
             -H "Content-Type: application/octet-stream" \
             --data-binary @./artifacts/bootloader-${TAG}.img \
             https://uploads.github.com/repos/${REPO}/releases/${RELEASE_ID}/assets?name=bootloader-${TAG}.img
+
+          curl -s -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: text/plain" \
+            --data-binary @./artifacts/NOTICE \
+            https://uploads.github.com/repos/${REPO}/releases/${RELEASE_ID}/assets?name=NOTICE
 
       - name: Record successful build
         run: |

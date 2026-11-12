@@ -154,7 +154,7 @@ Upon successful build, a GitHub release is created automatically.
 - **Tag:** `bootloader-vX.Y.Z` (e.g., `bootloader-v2026.10`)
 - **Name:** `Bootloader for U-Boot vX.Y.Z`
 - **Asset:** `bootloader-vX.Y.Z.img`
--
+- **Notice:** `NOTICE`, uploaded next to the image
 
 ### Release Notes Include
 
@@ -164,6 +164,7 @@ Upon successful build, a GitHub release is created automatically.
 - Configuration used
 - Usage instructions
 - Build environment details
+- Third-party notice for U-Boot (GPL-2.0-or-later) and the Rockchip binaries
 
 ### Download Options
 
