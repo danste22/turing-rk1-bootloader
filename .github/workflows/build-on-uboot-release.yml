@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       uboot_tag:
-        description: "U-Boot tag to build (e.g., v2024.07)"
+        description: "U-Boot tag to build (e.g., v2026.10)"
         required: false
         type: string
 
@@ -101,15 +101,15 @@ jobs:
           echo "Starting bootloader build for tag: ${TAG}"
           mkdir -p rkbin
           echo "Downloading Rockchip binaries..."
-          curl -fsSL -o rkbin/rk3588_bl31_v1.51.elf \
-            https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.51.elf
-          curl -fsSL -o rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
-            https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin
+          curl -fsSL -o rkbin/rk3588_bl31_v1.56.elf \
+            https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.56.elf
+          curl -fsSL -o rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.24.bin \
+            https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.24.bin
           echo "Configuring u-boot for Turing RK1 (ARM cross-compile)..."
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- turing-rk1-rk3588_defconfig
           echo "Building u-boot..."
-          ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
-          BL31=rkbin/rk3588_bl31_v1.51.elf \
+          ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.24.bin \
+          BL31=rkbin/rk3588_bl31_v1.56.elf \
           ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
           make -j$(nproc)
           echo "Creating bootloader image..."

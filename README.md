@@ -82,7 +82,7 @@ Go to your repository:
 1. Actions tab
 2. Select Build on U-Boot Release
 3. Click Run workflow
-4. (Optional) Enter specific U-Boot tag (e.g., `v2024.07`)
+4. (Optional) Enter specific U-Boot tag (e.g., `v2026.10`)
 5. Click Run workflow
 
 ### Via GitHub CLI
@@ -94,7 +94,7 @@ gh workflow run build-on-uboot-release.yml -r main
 
 # Trigger with specific tag
 
-gh workflow run build-on-uboot-release.yml -r main -f uboot_tag=v2024.07
+gh workflow run build-on-uboot-release.yml -r main -f uboot_tag=v2026.10
 ```
 
 ## Build Environment
@@ -131,9 +131,9 @@ The workflow maintains a `.builds-completed` file to prevent duplicate builds.
 **File Format:**
 
 ```Code
-v2024.01
-v2024.04
-v2024.07
+v2026.04
+v2026.07
+v2026.10
 ```
 
 Each line contains a built U-Boot version tag.
@@ -151,7 +151,7 @@ Upon successful build, a GitHub release is created automatically.
 
 ### Release Structure
 
-- **Tag:** `bootloader-vX.Y.Z` (e.g., `bootloader-v2024.07`)
+- **Tag:** `bootloader-vX.Y.Z` (e.g., `bootloader-v2026.10`)
 - **Name:** `Bootloader for U-Boot vX.Y.Z`
 - **Asset:** `bootloader-vX.Y.Z.img`
 -
@@ -176,7 +176,7 @@ https://github.com/danste22/turing-rk1-bootloader/releases/download/bootloader-v
 
 3. GitHub CLI:
    ```bash
-   gh release download bootloader-v2024.07 -p "\*.img"
+   gh release download bootloader-v2026.10 -p "\*.img"
    ```
 
 ## Local Development Setup
@@ -212,8 +212,8 @@ https://github.com/danste22/turing-rk1-bootloader/releases/download/bootloader-v
 
    ```bash
    cd u-boot
-   git fetch origin tag v2024.07
-   git checkout v2024.07
+   git fetch origin tag v2026.10
+   git checkout v2026.10
    cd ..
 
    docker run --rm \
@@ -222,13 +222,13 @@ https://github.com/danste22/turing-rk1-bootloader/releases/download/bootloader-v
      bootloader:dev \
    bash -c "
      mkdir -p rkbin && \
-     curl -fsSL -o rkbin/rk3588_bl31_v1.51.elf \
-       https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.51.elf && \
-     curl -fsSL -o rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
-       https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin && \
+     curl -fsSL -o rkbin/rk3588_bl31_v1.56.elf \
+       https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_bl31_v1.56.elf && \
+     curl -fsSL -o rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.24.bin \
+       https://github.com/rockchip-linux/rkbin/raw/refs/heads/master/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.24.bin && \
      make turing-rk1-rk3588_defconfig && \
-     ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.19.bin \
-     BL31=rkbin/rk3588_bl31_v1.51.elf \
+     ROCKCHIP_TPL=rkbin/rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.24.bin \
+     BL31=rkbin/rk3588_bl31_v1.56.elf \
      make -j\$(nproc) && \
      dd if=/dev/zero of=bootloader.img bs=512 count=32767 && \
      dd if=./idbloader.img of=bootloader.img bs=512 seek=64 conv=notrunc && \
